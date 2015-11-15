@@ -24,6 +24,7 @@ using System.Diagnostics;
 
 using System.Drawing;
 using TesseractConsole;
+using Tesseract;
 
 namespace OCRCapture
 {
@@ -35,7 +36,8 @@ namespace OCRCapture
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        public const int FIVE_MINUTES = 5 * 60 * 1000;
+        //public const int FIVE_MINUTES = 5 * 60 * 1000;
+        private const string TESS_WHITE_CHARECTERS = "";
 
         //TransferUtility _transferUtility;
 
@@ -60,22 +62,14 @@ namespace OCRCapture
         {
             NameValueCollection appConfig = ConfigurationManager.AppSettings;
             
-            this.TesseractInstalDir = appConfig["tesseractInstalationPath"];
+            //this.TesseractInstalDir = appConfig["tesseractInstalationPath"];
             //UploadFile = @"C:\Temp\q.png";
         }
         #endregion
 
         #region Bound Properties
 
-        public string Bucket
-        {
-            get { return this._bucket; }
-            set
-            {
-                this._bucket = value;
-                this.notifyPropertyChanged("Bucket");
-            }
-        }
+        
 
         public string UploadFile
         {
@@ -99,15 +93,7 @@ namespace OCRCapture
         }
 
 
-        public string TesseractInstalDir
-        {
-            get { return this._uploadDirectory; }
-            set
-            {
-                this._uploadDirectory = value;
-                this.notifyPropertyChanged("UploadDirectory");
-            }
-        }
+        
         #endregion
 
         #region Button Click Event Handlers
@@ -126,35 +112,17 @@ namespace OCRCapture
             // Ensure the progress bar is empty.
             resetProgressBars();
             updateIsEnabled(this._ctlUploadFile, false);
-            this.notifyPropertyChanged("UploadFile");
-            //ThreadPool.QueueUserWorkItem(new WaitCallback(this.threadedUploadFile));
+            
+            ThreadPool.QueueUserWorkItem(new WaitCallback(this.threadedUploadFile));
             //RecognizedText =  TransferPictureToText();
-            RecognizedText = TransferPictureToText1();
-            this.notifyPropertyChanged("RecognizedText");
+            
+            
 
             //updateIsEnabled(this._ctlRecognizedText, true);
             //this.threadedUploadFile(null);
         }
 
-        /*private void browseDirectory_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new System.Windows.Forms.FolderBrowserDialog();
-            dlg.Description = "Select a folder to upload.";
-            HwndSource source = PresentationSource.FromVisual(this) as HwndSource;
-            System.Windows.Forms.DialogResult result = dlg.ShowDialog(new WindowWrapper(source.Handle));
-            if (result == System.Windows.Forms.DialogResult.OK)
-            {
-                this.UploadDirectory = dlg.SelectedPath;
-            }
-        }*/
-
-        /*private void uploadDirectory_Click(object sender, RoutedEventArgs e)
-        {
-            resetProgressBars();
-            updateIsEnabled(this._ctlUploadDirectory, false);
-
-            ThreadPool.QueueUserWorkItem(new WaitCallback(this.threadedUploadDirectory));
-        }*/
+        
         #endregion
 
         #region S3 Upload Call
@@ -169,28 +137,9 @@ namespace OCRCapture
             try
             {
 
-                //try
-                //{
-                //    // Make sure the bucket exists
-                //    this._transferUtility.S3Client.EnsureBucketExists(this.Bucket);
-                //    //this._transferUtility.S3Client.PutBucket(new PutBucketRequest() { BucketName = this.Bucket });
-                //}
-                //catch(Amazon.S3.AmazonS3Exception ex)
-                //{
-                //    if(ex.ErrorCode!= "BucketAlreadyOwnedByYou")
-                //        displayMessageBox(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                //}
+                RecognizedText = TransferPictureToText();
 
-                //TransferUtilityUploadRequest request = new TransferUtilityUploadRequest()
-                //{
-                //    BucketName = this.Bucket,
-                //    FilePath = this.UploadFile
-                //};
-                //request.UploadProgressEvent += this.uploadFileProgressCallback;
-
-                //this._transferUtility.Upload(request);
-
-                displayMessageBox(string.Format("Recognize file completed!\n {0}", RecognizedText), "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                //displayMessageBox(string.Format("Recognize file completed!\n {0}", RecognizedText), "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception e)
             {
@@ -201,120 +150,34 @@ namespace OCRCapture
                 updateIsEnabled(this._ctlUploadFile, true);
             }
         }
-        private static int count = 0;
 
-        private string TransferPictureToText1()
-        {
-            const string language = "eng";
-            const string TessractData = @"C:\temp\tessdata\";
-
-            Ocr ocr = new Ocr();
-            using (Bitmap bmp = new Bitmap(UploadFile))
-            {
-                tessnet2.Tesseract tessocr = new tessnet2.Tesseract();
-                tessocr.SetVariable("tessedit_char_whitelist", "0123456789"); // If digit only
-                tessocr.SetVariable("-psm", "9"); // If digit only
-                try
-                {
-                    tessocr.Init(@"C:\Users\vladi\Documents\visual studio 2015\Projects\OCRCapture\OCRCapture\bin\Debug", "eng",true);
-                }
-                catch(Exception ex)
-                {
-
-                }
-                List<tessnet2.Word> result = tessocr.DoOCR(bmp, System.Drawing.Rectangle.Empty);
-                foreach (tessnet2.Word word in result)
-                    Console.WriteLine("{0} : {1}", word.Confidence, word.Text);
-
-
-            }
-            return "problem with image recognization";
-        }
         private string TransferPictureToText()
         {
-            //Process process = new Process();
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-
-
-            // Stop the process from opening a new window
-            startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardInput = true;
-            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.UseShellExecute = false;
-            startInfo.CreateNoWindow = true;
-
-            // Setup executable and parameters
-            startInfo.FileName = this.TesseractInstalDir;
-            //process.StartInfo.Arguments = string.Format(@" {0} {1}\out",UploadFile,Environment.SpecialFolder.ApplicationData );
-            string outFile = System.IO.Path.GetTempPath() + string.Format(@"\{0}.tmp", _fileName);
-            startInfo.Arguments = string.Format(@" {0} {1} -psm 9 digits", UploadFile, outFile);
-
-            //displayMessageBox(string.Format("Process {0} file ", UploadFile), "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            // Go
-
-            using (Process exeProcess = Process.Start(startInfo))
+            using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
             {
-                exeProcess.WaitForExit();
-            }
-
-
-            if (true)
-            {
-                //return (count++).ToString();//
-                string fileText = System.IO.File.ReadAllText(outFile + ".txt");
-                return string.Format("AU-{0}", fileText.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)[1]);
-
-                //using (var connection = new MySqlConnection("Server=(localdb)\\MSSQLLocalDB;Database=TestDb;Uid=root;Pwd=;"))
-                //using (var command = connection.CreateCommand())
-                //{
-                //    connection.Open();
-                //    command.CommandText = string.Format("insert into Table (chest_number,status) values ({0},'finished')  ", int.Parse(RecognizedText));
-
-                //    using (var reader = command.ExecuteReader())
-                //        while (reader.Read())
-                //            Console.WriteLine(reader.GetString(0) + ": " + reader.GetString(1));
-                //}
-
-
-            }
-            return "xcvxcvxcvx";
-        }
-
-        private void Process_Exited(object sender, EventArgs e)
-        {
-            string outFile = System.IO.Path.GetTempPath() + @"\out";
-
-        }
-
-        /// <summary>
-        /// This method is called in background thread so as not to block the UI as the upload is 
-        /// going.
-        /// </summary>
-        /// <param name="state">unused</param>
-        /*private void threadedUploadDirectory(object state)
-        {
-            try
-            {
-                // Make sure the bucket exists
-                this._transferUtility.S3Client.PutBucket(new PutBucketRequest() { BucketName = this.Bucket });
-
-                TransferUtilityUploadDirectoryRequest request = new TransferUtilityUploadDirectoryRequest()
+                engine.DefaultPageSegMode = PageSegMode.CircleWord;
+                engine.SetVariable("tessedit_char_whitelist", "AU-0123456789");
+                using (var img = Pix.LoadFromFile(UploadFile))
                 {
-                    BucketName = this.Bucket,
-                    Directory = this.UploadDirectory,
-                    SearchOption = SearchOption.AllDirectories
-                };
-                request.UploadDirectoryProgressEvent += this.uploadDirectoryProgressCallback;
-                this._transferUtility.UploadDirectory(request);
+                    using (var page = engine.Process(img))
+                    {
+                        var text = page.GetText();
+                        var words = text.Replace("\n", "").Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                displayMessageBox("Completed directory upload!", "Success", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return words[0];
+
+                    }
+                }
             }
-            finally
-            {
-                updateIsEnabled(this._ctlUploadDirectory, true);
-            }
-        }*/
-        #endregion
+
+
+                    //return "problem with image recognization";
+        }
+        
+
+        
+
+                #endregion
 
         #region Upload Event Callbacks
 
