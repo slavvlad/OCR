@@ -23,7 +23,7 @@ using Microsoft.Win32;
 using System.Diagnostics;
 
 using System.Drawing;
-using TesseractConsole;
+//using TesseractConsole;
 using Tesseract;
 
 namespace OCRCapture
@@ -37,7 +37,7 @@ namespace OCRCapture
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         //public const int FIVE_MINUTES = 5 * 60 * 1000;
-        private const string TESS_WHITE_CHARECTERS = "";
+        private readonly string TESS_WHITE_CHARECTERS = "AU-0123456789";
 
         //TransferUtility _transferUtility;
 
@@ -53,6 +53,12 @@ namespace OCRCapture
             InitializeComponent();
             this.DataContext = this;
             loadConfiguration();
+            String[] arguments = Environment.GetCommandLineArgs();
+            if (arguments.Length > 1)
+                WHITE_CHARECTERS = arguments[1];
+            else
+                WHITE_CHARECTERS = "aAbBcCdDeEFfGgHhIiJjKkLlMmNnOoPpQqRrsSTtUuVvWwXxYyZz";
+
         }
 
         /// <summary>
@@ -67,9 +73,11 @@ namespace OCRCapture
         }
         #endregion
 
+        public string WHITE_CHARECTERS { get; set; }
+
         #region Bound Properties
 
-        
+
 
         public string UploadFile
         {
@@ -156,7 +164,7 @@ namespace OCRCapture
             using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
             {
                 engine.DefaultPageSegMode = PageSegMode.CircleWord;
-                engine.SetVariable("tessedit_char_whitelist", "AU-0123456789");
+                engine.SetVariable("tessedit_char_whitelist", WHITE_CHARECTERS);
                 using (var img = Pix.LoadFromFile(UploadFile))
                 {
                     using (var page = engine.Process(img))
